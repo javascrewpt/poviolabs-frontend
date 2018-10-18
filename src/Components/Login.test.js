@@ -2,6 +2,7 @@ import React from 'react';
 import Enzyme, { mount, shallow } from 'enzyme';
 import { expect } from 'chai';
 import Adapter from 'enzyme-adapter-react-16';
+import { MemoryRouter as Router } from "react-router-dom";
 
 import Login from './Login';
 
@@ -11,7 +12,7 @@ describe('<Login />', () => {
 
     it('User not logged, show form.', () => {
         const outer = shallow(<Login />);
-        const Children = outer.props().children({ user: { data: null }, login: () => { }, logout: () => { } });
+        const Children = outer.props().children({ user: { data: null, login: jest.fn(), logout: jest.fn(), error: null } });
         const wrapper = mount(Children);
 
         expect(wrapper.find('form')).to.have.lengthOf(1);
@@ -19,7 +20,7 @@ describe('<Login />', () => {
 
     it('Submit button disabled/enabled.', () => {
         const outer = shallow(<Login />);
-        const Children = outer.props().children({ user: { data: null }, login: () => { }, logout: () => { } });
+        const Children = outer.props().children({ user: { data: null }, login: jest.fn(), logout: jest.fn() });
         const wrapper = mount(Children);
 
         expect(wrapper.find('button')).to.have.lengthOf(1);
@@ -33,8 +34,8 @@ describe('<Login />', () => {
 
     it('Used logged.', () => {
         const outer = shallow(<Login />);
-        const Children = outer.props().children({ user: { data: { _id: 1, username: 'DummyUser', noOfLikes: 1 } }, login: () => { }, logout: () => { } });
-        const wrapper = mount(Children);
+        const Children = outer.props().children({ user: { data: { _id: 1, username: 'DummyUser', noOfLikes: 1 } }, login: jest.fn(), logout: jest.fn() });
+        const wrapper = mount(<Router>{Children}</Router>);
 
         expect(wrapper.props().user).to.not.be.a('null')
         expect(wrapper.text()).to.contain('DummyUser');

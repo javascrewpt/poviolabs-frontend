@@ -3,74 +3,116 @@ import Context from './Context';
 import { API, APIAuth } from './api';
 import * as JWT from "jsonwebtoken";
 
+// In retrospective, I should have used at least 2 different providers (Auth, Users)
 class Provider extends React.Component {
+
     constructor() {
 
         super();
         this.state = {
+            searchedUser: {
+                data: null,
+                getUserById: this.getUserById
+            },
             user: {
-                data: this.handleUser(),
+                data: null,
                 error: null,
                 login: this.handleLogin,
                 logout: this.handleLogout,
-                like: this.handleLike
+                like: this.handleLike,
+                updatePassword: this.handleUpdatePassword,
+                updateStatus: null
             },
             mostLiked: {
-                users: null,
+                users: [],
                 loadingUsers: true
+            },
+            register: {
+                error: null,
+                signUp: this.handleSignUp
             }
         };
+    }
+
+    /**
+     * Helpers
+     */
+
+    refreshState = async () => {
+        // To keep the <List /> re-rendering to the minimum.
+
+        try {
+            const token = localStorage.getItem('token') || null;
+            let users = null;
+            let user = null;
+
+            if (token) {
+                users = await APIAuth(token).get('/most-liked');
+                user = this.createUser(token);
+            } else {
+                users = await API.get('/most-liked');
+            }
+
+            this.setState(prevState => {
+                return {
+                    //...prevState,
+                    mostLiked: {
+                        users: users.data.users,
+                        loadingUsers: false
+                    },
+                    user: {
+                        ...prevState.user,
+                        data: user
+                    },
+                    register: {
+                        ...prevState.register,
+                        error: null
+                    }
+                };
+            });
+
+        }
+        catch (error) {
+            console.warn(error);
+        }
     }
 
     createUser = (token) => {
 
         return { ...JWT.decode(token), token }
-    };
+    }
 
-    handleLike = async (whom_id, isALike) => {
+    sortUsers = (a, b) => {
 
+        const likes = b.noOfLikes - a.noOfLikes;
+        if (likes !== 0) {
+            return likes;
+        }
+
+        return a.username.localeCompare(b.username);
+    }
+
+    /**
+     * State handlers
+     */
+
+    getUserById = async (_id) => {
         try {
-            const { token } = this.state.user.data;
-            let response = null;
-
-            if (isALike) {
-                response = await APIAuth(token).get(`/user/${whom_id}/like`);
-            } else {
-                response = await APIAuth(token).get(`/user/${whom_id}/unlike`);
-            }
+            const response = await API.get(`/user/${_id}`);
             if (response.status === 200) {
-                const index = this.state.mostLiked.users.findIndex(user => user._id === response.data._id);
-                const updatedUser = response.data;
-
                 this.setState(prevState => {
                     return {
-                        mostLiked: {
-                            ...prevState.mostLiked,
-                            users: [...prevState.mostLiked.users.slice(0, index), updatedUser, ...prevState.mostLiked.users.slice(index + 1)].sort((a, b) => {
-                                const likes = b.noOfLikes - a.noOfLikes;
-                                if (likes !== 0) {
-                                    return likes;
-                                }
-
-                                return a.username.localeCompare(b.username);
-                            })
+                        searchedUser: {
+                            ...prevState.searchedUser,
+                            data: response.data
                         }
                     };
                 })
             }
         }
         catch (error) {
-            console.log(error);
+            console.warn(error);
         }
-    }
-
-    handleUser = () => {
-
-        const token = localStorage.getItem('token');
-        if (token) {
-            return this.createUser(token);
-        }
-        return null;
     }
 
     handleLogin = async (username, password) => {
@@ -82,14 +124,7 @@ class Provider extends React.Component {
 
             if (response.status === 200) {
                 localStorage.setItem('token', response.data.jwt);
-                this.setState(prevState => {
-                    return {
-                        user: {
-                            ...prevState.user,
-                            data: this.createUser(response.data.jwt)
-                        }
-                    }
-                });
+                this.refreshState();
             }
         }
         catch (error) {
@@ -120,34 +155,98 @@ class Provider extends React.Component {
         });
     }
 
-    async componentDidMount() {
+    handleLike = async (whom_id, isALike) => {
 
         try {
-            const { data } = this.state.user;
-            let users = null;
-            if (data) {
-                users = await APIAuth(data.token).get('/most-liked');
+            const { token } = this.state.user.data;
+            let response = null;
+
+            if (isALike) {
+                response = await APIAuth(token).get(`/user/${whom_id}/like`);
             } else {
-                users = await API.get('/most-liked');
+                response = await APIAuth(token).get(`/user/${whom_id}/unlike`);
             }
+            if (response.status === 200) {
+                const index = this.state.mostLiked.users.findIndex(user => user._id === response.data._id);
+                const updatedUser = response.data;
 
-            setTimeout(() => {
+                // Could be solved easier with re-populating from the API, i.e., .get('/most-liked')
                 this.setState(prevState => {
-
+                    const { users } = prevState.mostLiked;
                     return {
-                        ...prevState,
                         mostLiked: {
-                            users: users.data.users,
-                            loadingUsers: false
+                            ...prevState.mostLiked,
+                            users: [...users.slice(0, index), updatedUser, ...users.slice(index + 1)].sort(this.sortUsers)
                         }
                     };
-                });
-            }, 1500);
-
+                })
+            }
         }
         catch (error) {
-            console.warn(error);
+            console.log(error);
         }
+    }
+
+    handleUpdatePassword = async (oldPassword, newPassword) => {
+        try {
+            const token = localStorage.getItem('token') || null;
+            if (token) {
+                const response = await APIAuth(token).post('/update-password', {
+                    oldPassword,
+                    newPassword
+                });
+                if (response.status === 200 && response.data.success) {
+                    this.setState(prevState => {
+
+                        return {
+                            user: {
+                                ...prevState.user,
+                                updateStatus: `Password was successfully updated!`
+                            }
+                        };
+                    });
+                }
+            }
+        }
+        catch (error) {
+            const { message } = error.response.data;
+            this.setState(prevState => {
+                return {
+                    user: {
+                        ...prevState.user,
+                        updateStatus: message
+                    }
+                };
+            });
+        }
+    }
+
+    handleSignUp = async (username, password) => {
+        try {
+            const response = await API.post('/signup', {
+                username, password
+            });
+            if (response.status === 200) {
+                localStorage.setItem('token', response.data.jwt);
+                this.refreshState();
+            }
+        }
+        catch (error) {
+            const { message } = error.response.data;
+            this.setState(prevState => {
+                return {
+                    register: {
+                        ...prevState.register,
+                        error: message
+                    }
+                };
+            });
+        }
+    }
+
+    async componentDidMount() {
+
+        this.refreshState();
     }
 
     render() {

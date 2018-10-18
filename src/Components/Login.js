@@ -1,6 +1,7 @@
 import React from 'react';
-import { Button, Form, FormGroup, Label, Input, Badge, Alert } from 'reactstrap';
+import { Button, Form, FormGroup, Label, Input, Alert, Badge } from 'reactstrap';
 import PropTypes from 'prop-types';
+import { Link } from 'react-router-dom';
 
 import Context from '../State/Context';
 
@@ -49,7 +50,7 @@ class Login extends React.Component {
 
         return user ? (
             <div>
-                Hello, {user.username}! <Badge href="#" color="info" onClick={this.handleLogout}>Logout</Badge>
+                Hello, <Badge tag={Link} to='/me' color="success" pill>{user.username}</Badge >! <Badge href="#" color="light" onClick={this.handleLogout}>Logout</Badge>
             </div>
         ) : (
                 <>
@@ -77,8 +78,10 @@ Login.propTypes = {
     logout: PropTypes.func
 };
 
-export default props => <Context.Consumer>
-    {state => (
-        <Login user={state.user.data} error={state.user.error} login={state.user.login} logout={state.user.logout} />
-    )}
-</Context.Consumer>;
+export default props => (
+    <Context.Consumer>
+        {state => (
+            <Login user={state.user.data} error={state.user.error} login={state.user.login} logout={state.user.logout} {...props} />
+        )}
+    </Context.Consumer>
+);

@@ -1,5 +1,8 @@
 import React from 'react';
 import Login from './Login';
+import { Link } from 'react-router-dom';
+import { NavLink, Navbar, NavItem, Nav } from 'reactstrap';
+
 
 const Header = () => (
     <>
@@ -9,7 +12,16 @@ const Header = () => (
         <Login />
         <br />
         <br />
-        <nav></nav>
+        <Navbar color="light" light expand="md">
+            <Nav navbar>
+                <NavItem>
+                    <NavLink tag={Link} to='/'>Home</NavLink>
+                </NavItem>
+                <NavItem>
+                    <NavLink tag={Link} to='/sign-up'>Sign up</NavLink>
+                </NavItem>
+            </Nav>
+        </Navbar>
         <br />
         <br />
     </>

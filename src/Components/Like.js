@@ -7,8 +7,8 @@ class Like extends React.Component {
     clickHandler = (e, isALike = true) => {
 
         e.preventDefault();
-        const { user, auth, like } = this.props;
 
+        const { user, auth, like } = this.props;
         if (user._id === auth._id) {
             alert(`You can't like yourself and you should be ashamed for trying!`);
         } else {
@@ -21,6 +21,7 @@ class Like extends React.Component {
     }
 
     render() {
+
         const { auth, user } = this.props;
         let content = <div>Log in to like!</div>;
         if (auth && user.didLike) {
@@ -34,7 +35,7 @@ class Like extends React.Component {
                 {content}
             </>
         );
-    };
+    }
 }
 
 Like.propTypes = {
